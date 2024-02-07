@@ -1,0 +1,118 @@
+resource "aws_vpc" "myvpc" {
+  cidr_block            = "50.0.0.0/16"
+  instance_tenancy      = "default"
+  enable_dns_support    = "true"
+  enable_dns_hostnames  = "true"
+  tags = {
+    Name = "ch5-vpc"
+  }
+}
+resource "aws_subnet" "mysubnet" {
+  vpc_id                          = aws_vpc.myvpc.id
+  cidr_block                      = "50.0.1.0/24"
+  availability_zone               = "eu-west-1a"
+   map_public_ip_on_launch        = "true"
+
+  tags = {
+    Name = "MySub"
+  }
+}
+
+resource "aws_subnet" "mysubnets" {
+  vpc_id                          = aws_vpc.myvpc.id
+  cidr_block                      = "50.0.2.0/24"
+  availability_zone               = "eu-west-1b"
+   map_public_ip_on_launch        = "true"
+  tags = {
+    Name = "MySubs"
+  }
+}
+
+resource "aws_route_table" "myrtb" {
+  vpc_id = aws_vpc.myvpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.myigw.id
+  }
+
+  tags = {
+    Name = "myrtb"
+  }
+}
+
+resource "aws_internet_gateway" "myigw" {
+  vpc_id = aws_vpc.myvpc.id
+
+  tags = {
+    Name = "myigw"
+  }
+}
+
+resource "aws_route_table_association" "myrtba" {
+  subnet_id      = aws_subnet.mysubnet.id
+  route_table_id = aws_route_table.myrtb.id
+}
+resource "aws_route_table_association" "myrtbb" {
+  subnet_id      = aws_subnet.mysubnets.id
+  route_table_id = aws_route_table.myrtb.id
+}
+
+
+
+locals{
+       ports_in      = [22,80,443]
+       ports_out     = [0]
+}
+resource "aws_security_group" "mysg" {
+  name        = "mysg"
+  description = "Allow TLS inbound traffic and all outbound traffic"
+  vpc_id      = aws_vpc.myvpc.id
+
+
+   dynamic "ingress" {
+        for_each = toset(local.ports_in)
+
+        content{
+
+
+            description    = "TLS from VPC"
+            from_port      = ingress.value
+            to_port        = ingress.value
+            protocol       = "tcp"
+            cidr_blocks    = ["0.0.0.0/0"]
+  }
+}
+
+ dynamic "egress" {
+        for_each = toset(local.ports_out)
+
+        content{
+
+
+            description    = "TLS from VPC"
+            from_port      = egress.value           
+            to_port        = egress.value
+            protocol       = "-1"
+            cidr_blocks    = ["0.0.0.0/0"]
+  }
+}
+
+ tags = {
+   Name = "mysg"
+ }
+
+}
+resource "aws_key_pair" "mykey" {
+  key_name   = "mykey"
+  public_key = file("mykey.pub")
+}
+
+resource "aws_instance" "myec2" {
+  ami             = "ami-0323d48d3a525fd18"
+  instance_type   = "t2.micro"
+  key_name        = aws_key_pair.mykey.key_name
+  security_groups = ["${aws_security_group.mysg.id}"]
+  subnet_id       = "${aws_subnet.mysubnet.id}"
+}
+                                                                                                                                                          
