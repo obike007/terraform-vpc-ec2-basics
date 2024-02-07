@@ -8,14 +8,6 @@ pipeline {
 
 //           }
 //         }
-        stage ("provider.tf") {
-            steps {
-            sh provider "aws" 
-               region     = "eu-west-1"
-               access_key = "AKIA3KBZTZZMAPPJYX7D"
-               secret_key = "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"
-            }
-        }   
         
         stage ("terraform init") {
             steps {
